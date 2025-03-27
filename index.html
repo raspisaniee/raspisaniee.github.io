@@ -444,14 +444,18 @@
         };
 
         // Determine current week type (alternate between green and white week)
-        function getCurrentWeekType() {
-            const now = new Date();
-            const start = new Date(now.getFullYear(), 0, 1);
-            const diff = now - start;
-            const oneWeek = 7 * 24 * 60 * 60 * 1000;
-            const weekNumber = Math.floor(diff / oneWeek);
-            
-            return weekNumber % 2 === 0 ? "Белая неделя" : "Зеленая неделя";
+        function getWeekType(targetDate = null) {
+    // Устанавливаем стартовую дату
+            const startDate = new Date(2025, 0, 27); // Месяцы в JavaScript начинаются с 0
+    
+    // Используем текущую дату, если не передана явно
+            const currentDate = targetDate || new Date();
+    
+    // Рассчитываем количество прошедших недель
+            const weeksPassed = Math.floor((currentDate - startDate) / (7 * 24 * 60 * 60 * 1000));
+    
+    // Возвращаем тип недели
+            return weeksPassed % 2 === 0 ? "Белая неделя" : "Зеленая неделя";
         }
 
         function getCurrentDayOfWeek() {
