@@ -1,0 +1,919 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Расписание</title>
+    <style>
+        :root {
+            --bg-color: #000000;
+            --text-color: #f5f5f5;
+            --accent-color: #333333;
+            --highlight-color: #555555;
+            --border-color: #444444;
+            --gradient-start: rgba(255, 255, 255, 0.1);
+            --gradient-end: rgba(255, 255, 255, 0);
+            --progress-bar-color: #4CAF50;
+            --current-class-border: 2px solid #4CAF50;
+            --current-class-bg: rgba(76, 175, 80, 0.1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+        
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            -webkit-font-smoothing: antialiased;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .header {
+            padding: 20px 20px 10px;
+            background: linear-gradient(to bottom, var(--gradient-start), var(--gradient-end));
+        }
+        
+        .title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .week-type {
+            text-align: center;
+            font-size: 14px;
+            margin-bottom: 15px;
+            color: #999;
+        }
+        
+        .tabs {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+        
+        .tab {
+            padding: 10px;
+            border-radius: 8px;
+            background-color: var(--accent-color);
+            flex: 1;
+            margin: 0 4px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .tab.active {
+            background: linear-gradient(135deg, #555, #333);
+            box-shadow: 0 2px 8px rgba(255, 255, 255, 0.1);
+        }
+        
+        .tab:after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.2), transparent);
+        }
+        
+        /* Sub-tabs styling */
+        .sub-tabs {
+            display: flex;
+            justify-content: space-between;
+            margin: 0 0 15px;
+            padding: 5px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .sub-tab {
+            padding: 8px;
+            border-radius: 6px;
+            background-color: var(--accent-color);
+            flex: 1;
+            margin: 0 4px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        
+        .sub-tab.active {
+            background: linear-gradient(135deg, #444, #222);
+            box-shadow: 0 2px 6px rgba(255, 255, 255, 0.08);
+        }
+        
+        .sub-tab:after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.15), transparent);
+        }
+        
+        .content {
+            flex: 1;
+            padding: 0 15px 20px;
+            /* Removed overflow-y: auto to eliminate scrollbar */
+            min-height: 0; /* Ensure flex child behaves correctly */
+        }
+        
+        .class-card {
+            background: linear-gradient(to bottom, var(--accent-color), #222);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Current class styling */
+        .class-card.current {
+            border: var(--current-class-border);
+            background: linear-gradient(to bottom, var(--current-class-bg), #222);
+        }
+        
+        .time {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #bbb;
+        }
+        
+        .subject {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        
+        .details {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            color: #999;
+            margin-bottom: 10px;
+        }
+        
+        /* Progress bar container */
+        .progress-container {
+            display: none; /* Hidden by default, shown for current class */
+            margin-top: 10px;
+        }
+        
+        .class-card.current .progress-container {
+            display: block;
+        }
+        
+        .progress-bar {
+            height: 8px;
+            width: 100%;
+            background-color: #444;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 5px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background-color: var(--progress-bar-color);
+            width: 0%; /* Will be set dynamically with JS */
+            transition: width 1s linear;
+        }
+        
+        .remaining-time {
+            font-size: 12px;
+            text-align: right;
+            color: #999;
+        }
+        
+        .class-card:after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.2), transparent);
+        }
+        
+        .day-header {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 15px 0 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid var(--border-color);
+            color: #bbb;
+        }
+        
+        .no-classes {
+            text-align: center;
+            margin-top: 40px;
+            font-size: 16px;
+            color: #777;
+        }
+        
+        .finished-message {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 16px;
+            color: #777;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-size: 16px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #000000;
+                --text-color: #f5f5f5;
+            }
+        }
+        
+        @media screen and (min-width: 768px) {
+            .content {
+                max-width: 600px;
+                margin: 0 auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1 class="title">Расписание</h1>
+        <div id="weekType" class="week-type">Загрузка...</div>
+        <div class="tabs">
+            <div class="tab active" data-tab="today">Сегодня</div>
+            <div class="tab" data-tab="tomorrow">Завтра</div>
+            <div class="tab" data-tab="week">Все недели</div>
+        </div>
+        <!-- Sub-tabs will be added dynamically when "Все недели" tab is selected -->
+    </div>
+    <div class="content" id="content">
+        <div class="loading">Загрузка расписания...</div>
+    </div>
+
+    <script>
+        // Schedule data
+        const scheduleData = {
+            "Белая неделя": {
+                "ПН": [
+                    {
+                        "time": "08:00 - 09:30",
+                        "subject": "Иностранный язык в профессиональной деятельности",
+                        "room": "468",
+                        "type": "пр."
+                    },
+                    {
+                        "time": "09:40 - 11:10",
+                        "subject": "Теория вероятностей и математическая статистика",
+                        "room": "334",
+                        "type": "пр."
+                    },
+                    {
+                        "time": "11:20 - 12:50",
+                        "subject": "Теория вероятностей и математическая статистика",
+                        "room": "331",
+                        "type": "лек."
+                    }
+                ],
+                "СР": [
+                    {
+                        "time": "09:40 - 11:10",
+                        "subject": "Устройство и функционирование информационной системы",
+                        "room": "357",
+                        "type": "лаб."
+                    },
+                    {
+                        "time": "11:20 - 12:50",
+                        "subject": "Устройство и функционирование информационной системы",
+                        "room": "255",
+                        "type": "лек."
+                    },
+                    {
+                        "time": "13:20 - 14:50",
+                        "subject": "Физическая культура",
+                        "room": "спортзал",
+                        "type": "пр."
+                    },
+                    {
+                        "time": "15:00 - 16:30",
+                        "subject": "Устройство и функционирование информационной системы",
+                        "room": "360",
+                        "type": "лаб."
+                    }
+                ],
+                "ЧТ": [
+                    {
+                        "time": "09:40 - 11:10",
+                        "subject": "Операционные системы и среды",
+                        "room": "351",
+                        "type": "пр."
+                    },
+                    {
+                        "time": "11:20 - 12:50",
+                        "subject": "Основы алгоритмизации и программирования",
+                        "room": "362",
+                        "type": "пр."
+                    },
+                    {
+                        "time": "13:20 - 14:50",
+                        "subject": "Психология общения",
+                        "room": "Л-2",
+                        "type": "лек."
+                    },
+                    {
+                        "time": "15:00 - 16:30",
+                        "subject": "Психология общения",
+                        "room": "485",
+                        "type": "пр."
+                    }
+                ],
+                "ПТ": [
+                    {
+                        "time": "09:40 - 11:10",
+                        "subject": "Технология разработки программного обеспечения",
+                        "room": "219",
+                        "type": "лек."
+                    },
+                    {
+                        "time": "11:20 - 12:50",
+                        "subject": "Технология разработки программного обеспечения",
+                        "room": "360",
+                        "type": "лаб."
+                    }
+                ],
+                "СБ": [
+                    {
+                        "time": "08:00 - 09:30",
+                        "subject": "Компьютерные сети",
+                        "room": "9-402",
+                        "type": "лек."
+                    },
+                    {
+                        "time": "09:40 - 11:10",
+                        "subject": "Компьютерные сети",
+                        "room": "357",
+                        "type": "лаб."
+                    },
+                    {
+                        "time": "11:20 - 12:50",
+                        "subject": "Компьютерные сети",
+                        "room": "357",
+                        "type": "лаб."
+                    },
+                    {
+                        "time": "13:20 - 14:50",
+                        "subject": "Операционные системы и среды",
+                        "room": "9-402",
+                        "type": "лек."
+                    }
+                ]
+            },
+            "Зеленая неделя": {
+                "ПН": [
+                    {
+                        "time": "08:00 - 09:30",
+                        "subject": "Иностранный язык в профессиональной деятельности",
+                        "room": "468",
+                        "type": "пр."
+                    },
+                    {
+                        "time": "09:40 - 11:10",
+                        "subject": "Теория вероятностей и математическая статистика",
+                        "room": "334",
+                        "type": "пр."
+                    },
+                    {
+                        "time": "11:20 - 12:50",
+                        "subject": "Основы алгоритмизации и программирования",
+                        "room": "362",
+                        "type": "пр."
+                    },
+                    {
+                        "time": "13:20 - 14:50",
+                        "subject": "Операционные системы и среды",
+                        "room": "351",
+                        "type": "пр."
+                    }
+                ],
+                "СР": [
+                    {
+                        "time": "09:40 - 11:10",
+                        "subject": "Устройство и функционирование информационной системы",
+                        "room": "357",
+                        "type": "лаб."
+                    },
+                    {
+                        "time": "11:20 - 12:50",
+                        "subject": "Устройство и функционирование информационной системы",
+                        "room": "255",
+                        "type": "лек."
+                    },
+                    {
+                        "time": "13:20 - 14:50",
+                        "subject": "Физическая культура",
+                        "room": "спортзал",
+                        "type": "пр."
+                    },
+                    {
+                        "time": "15:00 - 16:30",
+                        "subject": "Устройство и функционирование информационной системы",
+                        "room": "360",
+                        "type": "лаб."
+                    }
+                ],
+                "ЧТ": [
+                    {
+                        "time": "09:40 - 11:10",
+                        "subject": "Операционные системы и среды",
+                        "room": "351",
+                        "type": "пр."
+                    },
+                    {
+                        "time": "11:20 - 12:50",
+                        "subject": "Основы алгоритмизации и программирования",
+                        "room": "362",
+                        "type": "пр."
+                    },
+                    {
+                        "time": "13:20 - 14:50",
+                        "subject": "Основы алгоритмизации и программирования",
+                        "room": "255",
+                        "type": "лек."
+                    },
+                    {
+                        "time": "15:00 - 16:30",
+                        "subject": "Психология общения",
+                        "room": "485",
+                        "type": "пр."
+                    }
+                ],
+                "ПТ": [
+                    {
+                        "time": "11:20 - 12:50",
+                        "subject": "Технология разработки программного обеспечения",
+                        "room": "360",
+                        "type": "лаб."
+                    },
+                    {
+                        "time": "13:20 - 14:50",
+                        "subject": "Технология разработки программного обеспечения",
+                        "room": "9-402",
+                        "type": "лек."
+                    }
+                ],
+                "СБ": [
+                    {
+                        "time": "08:00 - 09:30",
+                        "subject": "Компьютерные сети",
+                        "room": "9-402",
+                        "type": "лек."
+                    },
+                    {
+                        "time": "09:40 - 11:10",
+                        "subject": "Компьютерные сети",
+                        "room": "357",
+                        "type": "лаб."
+                    },
+                    {
+                        "time": "11:20 - 12:50",
+                        "subject": "Компьютерные сети",
+                        "room": "357",
+                        "type": "лаб."
+                    }
+                ]
+            }
+        };
+
+        // Helper functions
+        const dayOfWeekMap = {
+            0: "ВС",
+            1: "ПН",
+            2: "ВТ",
+            3: "СР",
+            4: "ЧТ",
+            5: "ПТ",
+            6: "СБ"
+        };
+
+        const fullDayNames = {
+            "ПН": "Понедельник",
+            "ВТ": "Вторник",
+            "СР": "Среда",
+            "ЧТ": "Четверг",
+            "ПТ": "Пятница",
+            "СБ": "Суббота",
+            "ВС": "Воскресенье"
+        };
+
+        // Determine current week type (alternate between green and white week)
+        function getCurrentWeekType() {
+            const startDate = new Date('2025-01-27');
+            const currentDate = new Date();
+            const timeDiff = currentDate.getTime() - startDate.getTime();
+            const weeksPassed = Math.floor(timeDiff / (7 * 24 * 60 * 60 * 1000));
+            return weeksPassed % 2 === 0 ? "Белая неделя" : "Зеленая неделя";
+        }
+        
+        function getTomorrowWeekType() {
+            const startDate = new Date('2025-01-27');
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const timeDiff = tomorrow.getTime() - startDate.getTime();
+            const weeksPassed = Math.floor(timeDiff / (7 * 24 * 60 * 60 * 1000));
+            return weeksPassed % 2 === 0 ? "Белая неделя" : "Зеленая неделя";
+        }
+        
+        function getCurrentDayOfWeek() {
+            return dayOfWeekMap[new Date().getDay()];
+        }
+
+        function getTomorrowDayOfWeek() {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            return dayOfWeekMap[tomorrow.getDay()];
+        }
+
+        // Time parsing and progress functions
+        function parseTimeString(timeStr) {
+            const [start, end] = timeStr.split(' - ');
+            
+            // Parse start time
+            const [startHours, startMinutes] = start.split(':').map(Number);
+            const startDate = new Date();
+            startDate.setHours(startHours, startMinutes, 0, 0);
+            
+            // Parse end time
+            const [endHours, endMinutes] = end.split(':').map(Number);
+            const endDate = new Date();
+            endDate.setHours(endHours, endMinutes, 0, 0);
+            
+            return { start: startDate.getTime(), end: endDate.getTime() };
+        }
+        
+        function isCurrentClass(timeStr) {
+            const now = Date.now();
+            const { start, end } = parseTimeString(timeStr);
+            return now >= start && now <= end;
+        }
+        
+        function calculateProgress(timeStr) {
+            const now = Date.now();
+            const { start, end } = parseTimeString(timeStr);
+            
+            const totalDuration = end - start;
+            const elapsed = now - start;
+            
+            return Math.min(Math.max(0, (elapsed / totalDuration) * 100), 100);
+        }
+        
+        function calculateRemainingTime(timeStr) {
+            const now = Date.now();
+            const { end } = parseTimeString(timeStr);
+            
+            const remainingMs = end - now;
+            const remainingMinutes = Math.ceil(remainingMs / 60000);
+            
+            return remainingMinutes > 0 ? remainingMinutes : 0;
+        }
+
+        // Check if all classes for the day are finished
+        function areClassesFinishedForDay(weekType, dayOfWeek) {
+            const dayClasses = scheduleData[weekType][dayOfWeek];
+            if (!dayClasses || dayClasses.length === 0) return true;
+            
+            const now = Date.now();
+            const lastClassEnd = parseTimeString(dayClasses[dayClasses.length - 1].time).end;
+            
+            return now > lastClassEnd;
+        }
+
+        // UI Rendering functions
+        function renderClassCard(classItem, isTodayTab = false) {
+            // Only show progress and current class styling in "Сегодня" tab
+            const showProgress = isTodayTab && isCurrentClass(classItem.time);
+            const currentClass = showProgress ? 'current' : '';
+            
+            let html = `
+                <div class="class-card ${currentClass}">
+                    <div class="time">${classItem.time}</div>
+                    <div class="subject">${classItem.subject}</div>
+                    <div class="details">
+                        <div class="room">Кабинет: ${classItem.room}</div>
+                        <div class="type">${classItem.type}</div>
+                    </div>
+            `;
+            
+            // Add progress bar for current class in "Сегодня" tab
+            if (showProgress) {
+                const progress = calculateProgress(classItem.time);
+                const remainingMinutes = calculateRemainingTime(classItem.time);
+                
+                html += `
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${progress}%"></div>
+                        </div>
+                        <div class="remaining-time">Осталось: ${remainingMinutes} минут</div>
+                    </div>
+                `;
+            }
+            
+            html += `</div>`;
+            return html;
+        }
+
+        function renderDaySchedule(weekType, dayOfWeek, isTodayTab = false) {
+            const dayClasses = scheduleData[weekType][dayOfWeek];
+            
+            if (!dayClasses || dayClasses.length === 0) {
+                return `<div class="no-classes">Нет занятий</div>`;
+            }
+            
+            return dayClasses.map(classItem => renderClassCard(classItem, isTodayTab)).join('');
+        }
+
+        function renderTodaySchedule() {
+            const weekType = getCurrentWeekType();
+            const dayOfWeek = getCurrentDayOfWeek();
+            
+            let html = `<div class="day-header">${fullDayNames[dayOfWeek]}</div>`;
+            
+            if (!scheduleData[weekType][dayOfWeek]) {
+                html += `<div class="no-classes">Сегодня нет занятий</div>`;
+            } else {
+                html += renderDaySchedule(weekType, dayOfWeek, true);
+                if (areClassesFinishedForDay(weekType, dayOfWeek)) {
+                    html += `<div class="finished-message">Занятия на сегодня завершены</div>`;
+                }
+            }
+            
+            return html;
+        }
+
+        function renderTomorrowSchedule() {
+            const weekType = getTomorrowWeekType();
+            const tomorrowDay = getTomorrowDayOfWeek();
+    
+            let html = `<div class="day-header">${fullDayNames[tomorrowDay]}</div>`;
+    
+            if (!scheduleData[weekType][tomorrowDay]) {
+                html += `<div class="no-classes">Завтра нет занятий</div>`;
+            } else {
+                html += renderDaySchedule(weekType, tomorrowDay, false);
+            }
+    
+            return html;
+        }
+
+        function renderFullWeekSchedule(weekType) {
+            let html = '';
+            
+            const daysOrder = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"];
+            
+            for (const day of daysOrder) {
+                if (scheduleData[weekType][day]) {
+                    html += `<div class="day-header">${fullDayNames[day]}</div>`;
+                    html += renderDaySchedule(weekType, day, false);
+                }
+            }
+            
+            if (html === '') {
+                html = `<div class="no-classes">Нет занятий на этой неделе</div>`;
+            }
+            
+            return html;
+        }
+
+        // Tab and Sub-tab handling
+        function setActiveTab(tabName) {
+            // Set active main tab
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.tab === tabName);
+            });
+            
+            const contentDiv = document.getElementById('content');
+            
+            // Handle sub-tabs for "Все недели" tab
+            if (tabName === 'week') {
+                // Check if sub-tabs already exist
+                let subTabsContainer = document.querySelector('.sub-tabs');
+                
+                // Create sub-tabs if they don't exist
+                if (!subTabsContainer) {
+                    subTabsContainer = document.createElement('div');
+                    subTabsContainer.className = 'sub-tabs';
+                    subTabsContainer.innerHTML = `
+                        <div class="sub-tab active" data-week="Белая неделя">Белая неделя</div>
+                        <div class="sub-tab" data-week="Зеленая неделя">Зеленая неделя</div>
+                    `;
+                    
+                    // Insert sub-tabs after main tabs
+                    const tabsContainer = document.querySelector('.tabs');
+                    tabsContainer.parentNode.insertBefore(subTabsContainer, tabsContainer.nextSibling);
+                    
+                    // Add click handlers for sub-tabs
+                    document.querySelectorAll('.sub-tab').forEach(subTab => {
+                        subTab.addEventListener('click', () => {
+                            setActiveSubTab(subTab.dataset.week);
+                        });
+                    });
+                } else {
+                    // Make sub-tabs visible
+                    subTabsContainer.style.display = 'flex';
+                }
+                
+                // Load saved sub-tab or default to "Белая неделя"
+                const savedSubTab = localStorage.getItem('activeSubTab') || "Белая неделя";
+                setActiveSubTab(savedSubTab);
+            } else {
+                // Hide sub-tabs for other main tabs
+                const subTabsContainer = document.querySelector('.sub-tabs');
+                if (subTabsContainer) {
+                    subTabsContainer.style.display = 'none';
+                }
+                
+                // Render content based on selected tab
+                switch (tabName) {
+                    case 'today':
+                        contentDiv.innerHTML = renderTodaySchedule();
+                        break;
+                    case 'tomorrow':
+                        contentDiv.innerHTML = renderTomorrowSchedule();
+                        break;
+                }
+            }
+            
+            // Save active tab to localStorage
+            localStorage.setItem('activeTab', tabName);
+        }
+        
+        function setActiveSubTab(weekType) {
+            // Set active sub-tab
+            document.querySelectorAll('.sub-tab').forEach(subTab => {
+                subTab.classList.toggle('active', subTab.dataset.week === weekType);
+            });
+            
+            // Render content for selected week type
+            document.getElementById('content').innerHTML = renderFullWeekSchedule(weekType);
+            
+            // Save active sub-tab to localStorage
+            localStorage.setItem('activeSubTab', weekType);
+        }
+
+        // Update progress bars for active class
+        let progressInterval = null;
+
+        function updateProgressBars() {
+            const activeTab = document.querySelector('.tab.active')?.dataset.tab;
+            if (activeTab !== 'today') {
+                if (progressInterval) {
+                    clearInterval(progressInterval);
+                    progressInterval = null;
+                }
+                return;
+            }
+
+            const weekType = getCurrentWeekType();
+            const dayOfWeek = getCurrentDayOfWeek();
+
+            if (areClassesFinishedForDay(weekType, dayOfWeek)) {
+                if (progressInterval) {
+                    clearInterval(progressInterval);
+                    progressInterval = null;
+                }
+                return;
+            }
+
+            const currentClassCard = document.querySelector('.class-card.current');
+            if (!currentClassCard) {
+                if (progressInterval) {
+                    clearInterval(progressInterval);
+                    progressInterval = null;
+                }
+                return;
+            }
+
+            const timeDiv = currentClassCard.querySelector('.time');
+            const timeStr = timeDiv.textContent;
+
+            if (!isCurrentClass(timeStr)) {
+                // Class is no longer current, refresh the schedule
+                setActiveTab('today');
+                if (progressInterval) {
+                    clearInterval(progressInterval);
+                    progressInterval = null;
+                }
+                return;
+            }
+
+            const progress = calculateProgress(timeStr);
+            const remainingMinutes = calculateRemainingTime(timeStr);
+            
+            const progressFill = currentClassCard.querySelector('.progress-fill');
+            const remainingTimeDiv = currentClassCard.querySelector('.remaining-time');
+            
+            if (progressFill) {
+                progressFill.style.width = `${progress}%`;
+            }
+            
+            if (remainingTimeDiv) {
+                remainingTimeDiv.textContent = `Осталось: ${remainingMinutes} минут`;
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set week type
+            const weekType = getCurrentWeekType();
+            document.getElementById('weekType').textContent = weekType;
+            
+            // Set up tab click handlers
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    setActiveTab(tab.dataset.tab);
+                });
+            });
+            
+            // Load saved active tab or default to 'today'
+            const savedTab = localStorage.getItem('activeTab') || 'today';
+            setActiveTab(savedTab);
+            
+            // Auto-update schedule every 30 seconds
+            setInterval(() => {
+                const activeTab = document.querySelector('.tab.active').dataset.tab;
+                setActiveTab(activeTab);
+            }, 30000);
+
+            // Start progress bar updates
+            progressInterval = setInterval(updateProgressBars, 1000); // Update every second
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'933ca13c5847bf66',t:'MTc0NTIzNTg3MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
+</body>
+</html>
