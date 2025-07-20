@@ -1,43 +1,4 @@
-<script type="text/javascript">
-        var gk_isXlsx = false;
-        var gk_xlsxFileLookup = {};
-        var gk_fileData = {};
-        function filledCell(cell) {
-          return cell !== '' && cell != null;
-        }
-        function loadFileData(filename) {
-        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-            try {
-                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                var firstSheetName = workbook.SheetNames[0];
-                var worksheet = workbook.Sheets[firstSheetName];
-
-                // Convert sheet to JSON to filter blank rows
-                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                // Filter out blank rows (rows where all cells are empty, null, or undefined)
-                var filteredData = jsonData.filter(row => row.some(filledCell));
-
-                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
-                var headerRowIndex = filteredData.findIndex((row, index) =>
-                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-                );
-                // Fallback
-                if (headerRowIndex === -1 || headerRowIndex > 25) {
-                  headerRowIndex = 0;
-                }
-
-                // Convert filtered JSON back to CSV
-                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
-                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                return csv;
-            } catch (e) {
-                console.error(e);
-                return "";
-            }
-        }
-        return gk_fileData[filename] || "";
-        }
-        </script><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -174,8 +135,7 @@
         .content {
             flex: 1;
             padding: 0 15px 20px;
-            /* Removed overflow-y: auto to eliminate scrollbar */
-            min-height: 0; /* Ensure flex child behaves correctly */
+            min-height: 0;
         }
         
         .class-card {
@@ -218,7 +178,7 @@
         
         /* Progress bar container */
         .progress-container {
-            display: none; /* Hidden by default, shown for current class */
+            display: none;
             margin-top: 10px;
         }
         
@@ -238,7 +198,7 @@
         .progress-fill {
             height: 100%;
             background-color: var(--progress-bar-color);
-            width: 0%; /* Will be set dynamically with JS */
+            width: 0%;
             transition: width 1s linear;
         }
         
@@ -287,6 +247,13 @@
             font-size: 16px;
         }
 
+        .error {
+            text-align: center;
+            padding: 20px;
+            font-size: 16px;
+            color: #ff6b6b;
+        }
+
         @media (prefers-color-scheme: dark) {
             :root {
                 --bg-color: #000000;
@@ -311,244 +278,14 @@
             <div class="tab" data-tab="tomorrow">Завтра</div>
             <div class="tab" data-tab="week">Все недели</div>
         </div>
-        <!-- Sub-tabs will be added dynamically when "Все недели" tab is selected -->
     </div>
     <div class="content" id="content">
         <div class="loading">Загрузка расписания...</div>
     </div>
 
     <script>
-        // Schedule data
-        const scheduleData = {
-            "Белая неделя": {
-                "ПН": [
-                    {
-                        "time": "08:00 - 09:30",
-                        "subject": "Иностранный язык в профессиональной деятельности",
-                        "room": "468",
-                        "type": "пр."
-                    },
-                    {
-                        "time": "09:40 - 11:10",
-                        "subject": "Теория вероятностей и математическая статистика",
-                        "room": "334",
-                        "type": "пр."
-                    },
-                    {
-                        "time": "11:20 - 12:50",
-                        "subject": "Теория вероятностей и математическая статистика",
-                        "room": "331",
-                        "type": "лек."
-                    }
-                ],
-                "СР": [
-                    {
-                        "time": "09:40 - 11:10",
-                        "subject": "Устройство и функционирование информационной системы",
-                        "room": "357",
-                        "type": "лаб."
-                    },
-                    {
-                        "time": "11:20 - 12:50",
-                        "subject": "Устройство и функционирование информационной системы",
-                        "room": "255",
-                        "type": "лек."
-                    },
-                    {
-                        "time": "13:20 - 14:50",
-                        "subject": "Физическая культура",
-                        "room": "спортзал",
-                        "type": "пр."
-                    },
-                    {
-                        "time": "15:00 - 16:30",
-                        "subject": "Устройство и функционирование информационной системы",
-                        "room": "360",
-                        "type": "лаб."
-                    }
-                ],
-                "ЧТ": [
-                    {
-                        "time": "09:40 - 11:10",
-                        "subject": "Операционные системы и среды",
-                        "room": "351",
-                        "type": "пр."
-                    },
-                    {
-                        "time": "11:20 - 12:50",
-                        "subject": "Основы алгоритмизации и программирования",
-                        "room": "362",
-                        "type": "пр."
-                    },
-                    {
-                        "time": "13:20 - 14:50",
-                        "subject": "Психология общения",
-                        "room": "Л-2",
-                        "type": "лек."
-                    },
-                    {
-                        "time": "15:00 - 16:30",
-                        "subject": "Психология общения",
-                        "room": "485",
-                        "type": "пр."
-                    }
-                ],
-                "ПТ": [
-                    {
-                        "time": "09:40 - 11:10",
-                        "subject": "Технология разработки программного обеспечения",
-                        "room": "219",
-                        "type": "лек."
-                    },
-                    {
-                        "time": "11:20 - 12:50",
-                        "subject": "Технология разработки программного обеспечения",
-                        "room": "360",
-                        "type": "лаб."
-                    }
-                ],
-                "СБ": [
-                    {
-                        "time": "08:00 - 09:30",
-                        "subject": "Компьютерные сети",
-                        "room": "9-402",
-                        "type": "лек."
-                    },
-                    {
-                        "time": "09:40 - 11:10",
-                        "subject": "Компьютерные сети",
-                        "room": "357",
-                        "type": "лаб."
-                    },
-                    {
-                        "time": "11:20 - 12:50",
-                        "subject": "Компьютерные сети",
-                        "room": "357",
-                        "type": "лаб."
-                    },
-                    {
-                        "time": "13:20 - 14:50",
-                        "subject": "Операционные системы и среды",
-                        "room": "9-402",
-                        "type": "лек."
-                    }
-                ]
-            },
-            "Зеленая неделя": {
-                "ПН": [
-                    {
-                        "time": "08:00 - 09:30",
-                        "subject": "Иностранный язык в профессиональной деятельности",
-                        "room": "468",
-                        "type": "пр."
-                    },
-                    {
-                        "time": "09:40 - 11:10",
-                        "subject": "Теория вероятностей и математическая статистика",
-                        "room": "334",
-                        "type": "пр."
-                    },
-                    {
-                        "time": "11:20 - 12:50",
-                        "subject": "Основы алгоритмизации и программирования",
-                        "room": "362",
-                        "type": "пр."
-                    },
-                    {
-                        "time": "13:20 - 14:50",
-                        "subject": "Операционные системы и среды",
-                        "room": "351",
-                        "type": "пр."
-                    }
-                ],
-                "СР": [
-                    {
-                        "time": "09:40 - 11:10",
-                        "subject": "Устройство и функционирование информационной системы",
-                        "room": "357",
-                        "type": "лаб."
-                    },
-                    {
-                        "time": "11:20 - 12:50",
-                        "subject": "Устройство и функционирование информационной системы",
-                        "room": "255",
-                        "type": "лек."
-                    },
-                    {
-                        "time": "13:20 - 14:50",
-                        "subject": "Физическая культура",
-                        "room": "спортзал",
-                        "type": "пр."
-                    },
-                    {
-                        "time": "15:00 - 16:30",
-                        "subject": "Устройство и функционирование информационной системы",
-                        "room": "360",
-                        "type": "лаб."
-                    }
-                ],
-                "ЧТ": [
-                    {
-                        "time": "09:40 - 11:10",
-                        "subject": "Операционные системы и среды",
-                        "room": "351",
-                        "type": "пр."
-                    },
-                    {
-                        "time": "11:20 - 12:50",
-                        "subject": "Основы алгоритмизации и программирования",
-                        "room": "362",
-                        "type": "пр."
-                    },
-                    {
-                        "time": "13:20 - 14:50",
-                        "subject": "Основы алгоритмизации и программирования",
-                        "room": "255",
-                        "type": "лек."
-                    },
-                    {
-                        "time": "15:00 - 16:30",
-                        "subject": "Психология общения",
-                        "room": "485",
-                        "type": "пр."
-                    }
-                ],
-                "ПТ": [
-                    {
-                        "time": "11:20 - 12:50",
-                        "subject": "Технология разработки программного обеспечения",
-                        "room": "360",
-                        "type": "лаб."
-                    },
-                    {
-                        "time": "13:20 - 14:50",
-                        "subject": "Технология разработки программного обеспечения",
-                        "room": "9-402",
-                        "type": "лек."
-                    }
-                ],
-                "СБ": [
-                    {
-                        "time": "08:00 - 09:30",
-                        "subject": "Компьютерные сети",
-                        "room": "9-402",
-                        "type": "лек."
-                    },
-                    {
-                        "time": "09:40 - 11:10",
-                        "subject": "Компьютерные сети",
-                        "room": "357",
-                        "type": "лаб."
-                    },
-                    {
-                        "time": "11:20 - 12:50",
-                        "subject": "Компьютерные сети",
-                        "room": "357",
-                        "type": "лаб."
-                    }
-                ]
-            }
-        };
+        // Global variable to store schedule data
+        let scheduleData = null;
 
         // Helper functions
         const dayOfWeekMap = {
@@ -570,6 +307,27 @@
             "СБ": "Суббота",
             "ВС": "Воскресенье"
         };
+
+        // Load schedule data from JSON file
+        async function loadScheduleData() {
+            try {
+                const response = await fetch('schedule.json');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                scheduleData = await response.json();
+                return true;
+            } catch (error) {
+                console.error('Error loading schedule data:', error);
+                document.getElementById('content').innerHTML = `
+                    <div class="error">
+                        Ошибка загрузки расписания.<br>
+                        Убедитесь, что файл schedule.json существует и доступен.
+                    </div>
+                `;
+                return false;
+            }
+        }
 
         // Determine current week type (alternate between green and white week)
         function getCurrentWeekType() {
@@ -644,8 +402,10 @@
 
         // Check if all classes for the day are finished
         function areClassesFinishedForDay(weekType, dayOfWeek) {
+            if (!scheduleData || !scheduleData[weekType] || !scheduleData[weekType][dayOfWeek]) return true;
+            
             const dayClasses = scheduleData[weekType][dayOfWeek];
-            if (!dayClasses || dayClasses.length === 0) return true;
+            if (dayClasses.length === 0) return true;
             
             const now = Date.now();
             const lastClassEnd = parseTimeString(dayClasses[dayClasses.length - 1].time).end;
@@ -689,9 +449,13 @@
         }
 
         function renderDaySchedule(weekType, dayOfWeek, isTodayTab = false) {
+            if (!scheduleData || !scheduleData[weekType] || !scheduleData[weekType][dayOfWeek]) {
+                return `<div class="no-classes">Нет занятий</div>`;
+            }
+            
             const dayClasses = scheduleData[weekType][dayOfWeek];
             
-            if (!dayClasses || dayClasses.length === 0) {
+            if (dayClasses.length === 0) {
                 return `<div class="no-classes">Нет занятий</div>`;
             }
             
@@ -704,7 +468,7 @@
             
             let html = `<div class="day-header">${fullDayNames[dayOfWeek]}</div>`;
             
-            if (!scheduleData[weekType][dayOfWeek]) {
+            if (!scheduleData || !scheduleData[weekType] || !scheduleData[weekType][dayOfWeek]) {
                 html += `<div class="no-classes">Сегодня нет занятий</div>`;
             } else {
                 html += renderDaySchedule(weekType, dayOfWeek, true);
@@ -722,7 +486,7 @@
     
             let html = `<div class="day-header">${fullDayNames[tomorrowDay]}</div>`;
     
-            if (!scheduleData[weekType][tomorrowDay]) {
+            if (!scheduleData || !scheduleData[weekType] || !scheduleData[weekType][tomorrowDay]) {
                 html += `<div class="no-classes">Завтра нет занятий</div>`;
             } else {
                 html += renderDaySchedule(weekType, tomorrowDay, false);
@@ -732,12 +496,15 @@
         }
 
         function renderFullWeekSchedule(weekType) {
-            let html = '';
+            if (!scheduleData || !scheduleData[weekType]) {
+                return `<div class="no-classes">Нет данных для этой недели</div>`;
+            }
             
+            let html = '';
             const daysOrder = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"];
             
             for (const day of daysOrder) {
-                if (scheduleData[weekType][day]) {
+                if (scheduleData[weekType][day] && scheduleData[weekType][day].length > 0) {
                     html += `<div class="day-header">${fullDayNames[day]}</div>`;
                     html += renderDaySchedule(weekType, day, false);
                 }
@@ -752,6 +519,11 @@
 
         // Tab and Sub-tab handling
         function setActiveTab(tabName) {
+            if (!scheduleData) {
+                document.getElementById('content').innerHTML = `<div class="loading">Расписание еще загружается...</div>`;
+                return;
+            }
+
             // Set active main tab
             document.querySelectorAll('.tab').forEach(tab => {
                 tab.classList.toggle('active', tab.dataset.tab === tabName);
@@ -888,7 +660,14 @@
         }
 
         // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Load schedule data first
+            const loadSuccess = await loadScheduleData();
+            
+            if (!loadSuccess) {
+                return; // Error message already shown in loadScheduleData
+            }
+            
             // Set week type
             const weekType = getCurrentWeekType();
             document.getElementById('weekType').textContent = weekType;
@@ -914,10 +693,10 @@
             progressInterval = setInterval(updateProgressBars, 1000); // Update every second
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'933ca13c5847bf66',t:'MTc0NTIzNTg3MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
-<div style="position: fixed; top: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; z-index: 1000;">
-    <a href="http://lk.stu.lipetsk.ru" style="padding: 8px 12px; background-color: #333333; color: #f5f5f5; border: 1px solid #444444; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 500;">ЛК</a>
-    <a href="https://edu.kurgasov.ru:8443" style="padding: 8px 12px; background-color: #333333; color: #f5f5f5; border: 1px solid #444444; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 500;">КУ</a>
-</div>
+
+    <div style="position: fixed; top: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; z-index: 1000;">
+        <a href="http://lk.stu.lipetsk.ru" style="padding: 8px 12px; background-color: #333333; color: #f5f5f5; border: 1px solid #444444; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 500;">ЛК</a>
+        <a href="https://edu.kurgasov.ru:8443" style="padding: 8px 12px; background-color: #333333; color: #f5f5f5; border: 1px solid #444444; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 500;">КУ</a>
+    </div>
 </body>
 </html>
