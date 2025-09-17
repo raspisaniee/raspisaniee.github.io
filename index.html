@@ -335,7 +335,7 @@
             const currentDate = new Date();
             const timeDiff = currentDate.getTime() - startDate.getTime();
             const weeksPassed = Math.floor(timeDiff / (7 * 24 * 60 * 60 * 1000));
-            return weeksPassed % 2 === 0 ? "Белая неделя" : "Зеленая неделя";
+            return weeksPassed % 2 === 0 ? "Зеленая неделя" : "Белая неделя";
         }
         
         function getTomorrowWeekType() {
@@ -344,7 +344,7 @@
             tomorrow.setDate(tomorrow.getDate() + 1);
             const timeDiff = tomorrow.getTime() - startDate.getTime();
             const weeksPassed = Math.floor(timeDiff / (7 * 24 * 60 * 60 * 1000));
-            return weeksPassed % 2 === 0 ? "Белая неделя" : "Зеленая неделя";
+            return weeksPassed % 2 === 0 ? "Зеленая неделя" : "Белая неделя";
         }
         
         function getCurrentDayOfWeek() {
