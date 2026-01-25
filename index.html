@@ -33,6 +33,10 @@
             color: #888;
             font-size: 16px;
             transition: all 0.3s;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         .tab:hover {
@@ -68,7 +72,7 @@
     <div class="tabs">
         <button class="tab active" onclick="openTab('schedule')">Расписание</button>
         <button class="tab" onclick="openTab('map')">Карта</button>
-        <button class="tab" onclick="openTab('website')">Сайт</button>
+        <a class="tab" href="http://lk.stu.lipetsk.ru" target="_blank">Сайт</a>
     </div>
     
     <div id="schedule" class="content active">
@@ -77,10 +81,6 @@
     
     <div id="map" class="content">
         <img src="kr.png" alt="Карта" />
-    </div>
-    
-    <div id="website" class="content">
-        <iframe src="http://lk.stu.lipetsk.ru" style="background-color: #fff;"></iframe>
     </div>
     
     <script>
@@ -102,3 +102,4 @@
     </script>
 </body>
 </html>
+#и зачем ты тут
