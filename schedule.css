@@ -1,0 +1,38 @@
+.card-schedule{overflow:auto;background:#101112;color:#f5f5f4}
+.schedule-app{width:min(1120px,100%);margin:0 auto;padding:42px 28px 70px}
+.schedule-controls{display:flex;justify-content:flex-end;margin-bottom:26px}
+.week-toggle{display:flex;padding:4px;background:#1b1c1e;border:1px solid #303236;border-radius:12px}
+.week-button{display:flex;align-items:center;gap:8px;border:0;border-radius:8px;background:transparent;color:#8f9297;padding:11px 14px;cursor:pointer;font-size:13px}
+.week-button i{width:8px;height:8px;border-radius:50%;background:#e7e2d5}
+.week-button[data-week="green"] i{background:#85c85b}
+.week-button.active{background:#303236;color:#fff;box-shadow:0 2px 10px #0005}
+.now-strip{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}
+.now-card{position:relative;min-height:122px;padding:19px 20px;border:1px solid #303236;border-radius:16px;background:#191a1c;overflow:hidden}
+.now-card:before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:#56585c}
+.now-card.current:before{background:#8bce62}.now-card.next:before{background:#9a89ef}
+.now-card small{display:block;margin-bottom:10px;color:#85888d;font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+.now-card strong{display:block;max-width:88%;font-size:17px;line-height:1.25}
+.now-card div{display:flex;gap:12px;margin-top:13px;color:#aaaeb4;font-size:12px}
+.now-card .room{color:#fff;font-weight:800}
+.day-switcher{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin:24px 0 18px}
+.day-button{border:1px solid #2c2e32;border-radius:12px;background:#18191b;color:#81848a;padding:12px 8px;cursor:pointer;text-align:center;transition:.16s ease}
+.day-button:hover{border-color:#50535a;color:#ddd}.day-button.active{border-color:#f1f1ef;background:#f1f1ef;color:#111}
+.day-button b{display:block;font-size:13px}.day-button span{display:block;margin-top:4px;font-size:9px;opacity:.72}
+.lesson-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.lesson-card{position:relative;min-height:210px;padding:22px;border:1px solid #2e3034;border-radius:17px;background:linear-gradient(145deg,#1e1f21,#18191b);display:flex;flex-direction:column;overflow:hidden}
+.lesson-card:after{content:"";position:absolute;right:-28px;top:-34px;width:110px;height:110px;border-radius:50%;background:#ffffff05}
+.lesson-card.current{border-color:#7ebc59;box-shadow:inset 0 0 0 1px #7ebc59,0 16px 40px #6dba3720}
+.lesson-card.next{border-color:#8f7de0;box-shadow:inset 0 0 0 1px #8f7de0,0 16px 40px #7661dc20}
+.lesson-card.empty{min-height:240px;grid-column:1/-1;align-items:center;justify-content:center;text-align:center;color:#85888d}
+.lesson-card.empty strong{font:400 26px Georgia,serif;color:#ddd;margin-bottom:8px}
+.lesson-top{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:20px}
+.lesson-time{font:400 26px/1 Georgia,serif}.lesson-time span{color:#696c72}.lesson-state{padding:6px 9px;border-radius:999px;background:#2b2d31;color:#b8bbc1;font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.current .lesson-state{background:#8bce62;color:#13200c}.next .lesson-state{background:#9a89ef;color:#151020}
+.lesson-card h2{margin:0 0 11px;font-size:18px;line-height:1.25}.lesson-teacher{margin:0 0 19px;color:#9da0a5;font-size:13px;line-height:1.45}
+.lesson-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto}.meta-pill{padding:7px 9px;border:1px solid #37393e;border-radius:8px;background:#222326;color:#b8bbc0;font-size:11px}.meta-pill.room{border-color:#4d5057;color:#fff;font-weight:800}.meta-pill.type{text-transform:uppercase}
+.schedule-error{grid-column:1/-1;padding:22px;border:1px solid #713f3f;border-radius:14px;background:#2a1919;color:#ffb8b8}
+.hotspot.combined{border-color:#5c9526;background:linear-gradient(135deg,#9de05244 0 50%,#9b89ef38 50% 100%);box-shadow:0 0 0 4px #9b89ef66,0 0 24px #8ed04366}
+.hotspot.combined .current-pin{top:-13px;background:var(--green)}
+.hotspot.combined .next-pin{bottom:-13px;background:var(--violet)}
+@media(max-width:760px){.schedule-app{padding:26px 14px 60px}.week-toggle{width:100%}.week-button{justify-content:center;flex:1}.now-strip,.lesson-cards{grid-template-columns:1fr}.day-switcher{grid-template-columns:repeat(3,1fr)}.lesson-card{min-height:190px}}
+@media(max-width:420px){.lesson-time{font-size:22px}.now-card{min-height:112px}.day-button{padding:10px 5px}}
